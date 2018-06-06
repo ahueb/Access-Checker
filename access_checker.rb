@@ -39,13 +39,16 @@ require 'open-uri'
 puts "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-="
 puts "What platform/package are you access checking?"
 puts "Type one of the following:"
+puts "  acm    : ACM (Association for Computing Machinery) Digital Library"
 puts "  asp    : Alexander Street Press links"
 puts "  alman  : Al Manhal"
 puts "  apb    : Apabi ebooks"
 puts "  brep   : Brepols (brepolsonline.net)"
+puts "  brill  : Brill Online Books and Journals"
 puts "  cup    : Cambridge University Press"
 puts "  ciao   : Columbia International Affairs Online"  
 puts "  cod    : Criterion on Demand"
+puts "  credo  : Credo Reference"
 puts "  dgry   : De Gruyter ebook platform"
 puts "  dgtla  : Digitalia ebooks"
 puts "  dupsc  : Duke University Press (via Silverchair)"
@@ -54,8 +57,12 @@ puts "  ebr    : Ebrary links"
 puts "  ebs    : EBSCOhost ebook collection"
 puts "  end    : Endeca - Check for undeleted records"
 puts "  fmgfod : FMG Films on Demand"
+puts "  gale   : Gale Virtual Reference Library"
+puts "  ieee   : IEEE Xplore Digital Library"
+puts "  jstor  : JSTOR"
 puts "  kan    : Kanopy Streaming Video"
 puts "  lion   : LIterature ONline (Proquest)"
+puts "  muse   : Project Muse"
 puts "  nccorv : NCCO - Check for related volumes"
 puts "  obo    : Oxford Bibliographies Online"
 puts "  oho    : Oxford Handbooks Online"
@@ -161,7 +168,7 @@ elsif package == "asp"
   # and visiting an https URL was not resulting in certificate problems.)
   b = Celerity::Browser.new(:browser => :firefox, :secure_ssl => false)
 else
-  b = Celerity::Browser.new(:browser => :firefox)
+  b = Celerity::Browser.new(:browser => :internet_explorer, :default_wait => 10, :secure_ssl => false, :resynchronize => true)
   #b = Celerity::Browser.new(:browser => :firefox, :log_level => :all)
 end
 
@@ -212,7 +219,17 @@ csv_data.each do |r|
       access = "Check access manually"
     end  
 
-  elsif package == "alman"
+    elsif package == "acm"
+    sleeptime = 1
+    if page.match(/title="Get this Book"/)
+      access = "No Access"
+    elsif page.match(/href="https:\/\/dl.acm.org\/purchase/)
+      access = "No Access"
+    else
+      access = "Access"
+    end
+
+    elsif package == "alman"
     sleeptime = 1
     if page.include?("\"AvailabilityMode\":4")
       access = "Preview mode"  
@@ -257,6 +274,18 @@ csv_data.each do |r|
     else
       access = "Check access manually"
     end
+
+  elsif package == "brill"
+    sleeptime = 1
+    if page.match(/alt="Full Access"/)
+      access = "Full access"
+    elsif page.match(/alt="Open Access"/)
+      access = "Open access"
+    elsif page.match(/alt="Restricted Access"/)
+      access = "Restricted access"
+    else
+      access = "Check access manually"
+    end
     
   elsif package == "ciao"
     sleeptime = 1    
@@ -282,6 +311,16 @@ csv_data.each do |r|
       access = "Full access"
     else
       access = "Restricted access"
+    end
+
+  elsif package == "credo"
+    sleeptime = 1    
+    if page.include?("is not part of your account")
+      access = "Denied"
+    elsif page.include?("Background Information to Start Your Research")
+      access = "Search page - wrong url?"
+    else
+      access = "Full access"
     end
 
   elsif package == "dgry"
@@ -393,6 +432,32 @@ csv_data.each do |r|
       access = "Check access manually"
     end
 
+  elsif package == "gale"
+    sleeptime = 1    
+    if page.include?("uiuc_uis")
+      access = "Full access"
+    else
+      access = "Restricted access"
+    end
+
+  elsif package == "ieee"
+    sleeptime = 1    
+    if page.include?("University of Illinois Springfield")
+      access = "Full access"
+    else
+      access = "Restricted access"
+    end
+
+  elsif package == "jstor"
+    sleeptime = 45
+    if page.match(/DDO.contentData/)
+      access = "Full access"
+    elsif page.match(/"pageName" : "404 page not found"/)
+      access = "404"
+    else
+      access = "Possibly Restricted"
+    end
+
   elsif package == "kan"
     sleeptime = 10
     if page.include?("Your institution has not licensed")
@@ -419,6 +484,18 @@ csv_data.each do |r|
       access = "Full access (video content)"
     elsif page.include?("An error has occurred which prevents us from displaying this document")
       access = "Error"
+    else
+      access = "Check access manually"
+    end
+
+  elsif package == "muse"
+    sleeptime = 1
+    if page.include?('alt="full access"')
+      access = "Full access"
+    elsif page.include?('alt="open access"')
+      access = "Open access"
+    elsif page.include?('alt="restricted access"')
+      access = "Restricted access"
     else
       access = "Check access manually"
     end
@@ -454,7 +531,7 @@ csv_data.each do |r|
       access = "Restricted access"
     elsif page.include?("Sorry, your subscription does not entitle you to access this page")
       access = "Restricted access - cannot display page"
-    elsif page.match(/class="offscreen">Entitled to full text<.+{4,}/)
+    elsif page.match(/class="offscreen">Entitled to full text<.+{4,}/)or("You have institutional access")
       access = "Full access"
     elsif page.match(/class="mrwLeftLinks"><a href=\/science\?_ob=RefWorkIndexURL&_idxType=AR/)
       new_url_suffix = /\/science\?_ob=RefWorkIndexURL&_idxType=AR[^ ]+/.match(page)
@@ -527,7 +604,7 @@ csv_data.each do |r|
     elsif page.match(/DOI Not Found/) != nil
       access = "DOI error"
       no_spr_content = true
-    elsif page.match(/<h1>Page not found<\/h1>/) != nil
+    elsif page.match(/1.1 404 Not Found/) != nil
       access = "Page not found (404) error"
       no_spr_content = true      
     elsif page.include?("Bookshop, Wageningen")
@@ -576,10 +653,10 @@ csv_data.each do |r|
     sleeptime = 1
     if page.include?("DOI Not Found")
       access = "DOI error"
-    elsif page.match(/pf:authorized":"authorized/)
+    elsif page.match('"pf:authorized" : "authorized"')
       access = "Full access" 
-    elsif page.match(/pf:authorized":"not-authorized/)
-      if page.match(/Page Not Found/)
+    elsif page.match('"pf:authorized":"not-authorized"')
+      if page.match("Page Not Found")
         access = "Page not found"
       else
         access = "Restricted"
@@ -598,7 +675,7 @@ csv_data.each do |r|
 
   elsif package == 'wol'
     sleeptime = 1
-    if page.include?("You have full text access to this content</span><h1 id=\"productTitle\">")
+    if page.include?("Access by</span>")
       access = "Full access"
       if page.include?("agu_logo.jpg")
         access += " - AGU"
