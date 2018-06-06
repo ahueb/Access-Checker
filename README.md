@@ -1,3 +1,5 @@
+Note: IEEE and Gale as programmed currently only work for the collection at UIS
+
 # Access checker
 A simple JRuby script to check for full-text access to e-resource titles. Plain old URL/link checking won't alert you if one of your ebook links points to a valid HTML page reading "NO ACCESS." This script will.
 
